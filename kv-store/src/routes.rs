@@ -1,16 +1,18 @@
 use axum::{extract::Json};
-use serde::de::value; 
+// use serde::de::value; 
 use super::routes_resp::{SetResponse, IncomingSetRequest,
     IncomingGetRequest,GetResponse,ErrorResponse,IncomingDeleteRequest,
     DeleteResponse};
-use super::config::DB;
+// use super::config::DB;
 use super::routes_resp::Status;
+use super::ring::get_node_for_key;
 
 pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetResponse> {
     let key = payload.key;
     let value = payload.value;
 
     // Check if the key already exists
+    let DB = get_node_for_key(&key);
     match DB.get(key.as_bytes()) {
         Ok(Some(_)) => {
             let response = SetResponse {
@@ -57,7 +59,7 @@ pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetRespo
 
 pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<GetResponse>,  Json<ErrorResponse>> {
     let key = payload.key;
-    
+    let DB = get_node_for_key(&key);
     // Get from Sled database
     match DB.get(key.clone().as_bytes()) {
         Ok(Some(value)) => {
@@ -90,6 +92,7 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<
     let key = payload.key;
     
     // Remove from Sled database
+    let DB = get_node_for_key(&key);
     match DB.remove(key.clone().as_bytes()) {
         Ok(Some(_)) => {
             // Flush to ensure deletion is persisted

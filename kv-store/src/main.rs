@@ -1,6 +1,7 @@
 mod routes;
 mod routes_resp;
 mod config;
+mod ring;
 use axum::{Router, routing::post};
 use routes::{set_value,delete_value, get_value};
 
