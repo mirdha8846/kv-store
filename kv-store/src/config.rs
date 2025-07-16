@@ -1,7 +1,6 @@
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use std::sync::Mutex;
+use sled::Db;
 
-pub static DB: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
+pub static DB: Lazy<Db> = Lazy::new(|| {
+    sled::open("kv_store.db").expect("Failed to open database")
 });
