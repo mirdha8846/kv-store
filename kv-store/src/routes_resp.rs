@@ -23,6 +23,11 @@ pub struct DeleteResponse {
     pub message: String,
    
 }
+#[derive(Deserialize, Serialize)]
+pub struct LoginResponse{
+    pub status:Status,
+    pub token:String
+}
 #[derive(Serialize, Deserialize)]
 pub struct ErrorResponse {
     pub status: Status,
@@ -45,4 +50,8 @@ pub struct IncomingGetRequest {
 #[derive(Deserialize, Serialize)]
 pub struct IncomingDeleteRequest {
     pub key: String,
+}
+#[derive(Deserialize, Serialize)]
+pub struct IncomingLoginRequest{
+    pub email:String
 }

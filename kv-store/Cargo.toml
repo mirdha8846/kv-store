@@ -10,3 +10,6 @@ serde = { version = "1.0.219", features = ["derive"] }
 sled = "0.34.7"
 tokio = { version = "1.0", features = ["full"] }
 sha2 = "0.10"
+jsonwebtoken = "9.3.1"
+dotenv = "0.15.0"
+chrono = "0.4.41"

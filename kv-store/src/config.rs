@@ -7,6 +7,11 @@ pub struct Node {
    pub db: Db,
 }
 
+// pub struct Claims{
+//     email:String,
+//     exp:usize
+// }
+
 pub static NODES: Lazy<Vec<Node>> = Lazy::new(|| {
     vec![
         Node { id: "node0".into(), db: sled::open("db/node0").unwrap() },
@@ -16,3 +21,5 @@ pub static NODES: Lazy<Vec<Node>> = Lazy::new(|| {
         Node { id: "node4".into(), db: sled::open("db/node4").unwrap() },
     ]
 });
+
+

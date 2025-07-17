@@ -7,18 +7,22 @@
 
 
 
+use std::env;
 use std::fmt::format;
-
+use chrono::{Utc,Duration};
 use axum::{extract::Json};
-
+use dotenv::dotenv;
+use serde::de::value;
+use super::middleware::types;
 use super::routes_resp::{SetResponse, IncomingSetRequest,
     IncomingGetRequest,GetResponse,ErrorResponse,IncomingDeleteRequest,
-    DeleteResponse};
+    DeleteResponse,LoginResponse,IncomingLoginRequest};
 
 use super::routes_resp::Status;
 use super::ring::get_node_for_key;
 use super::config::NODES;
-
+use types::Claims;
+use jsonwebtoken::{encode, EncodingKey, Header};
 pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetResponse> {
     let key = payload.key;
     let value = payload.value;
@@ -145,4 +149,31 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<
                 return Err(Json::from(error_response));
         }
    
+}
+
+pub async fn login_handler(Json(payload):Json<IncomingLoginRequest>)->Result<Json<LoginResponse>,Json<ErrorResponse>>{
+    dotenv().ok();
+    let email=payload.email;
+    let claim=Claims{
+        email:email,
+        exp: (Utc::now() + Duration::hours(5)).timestamp() as usize
+    };
+    let secret=env::var("JWT_SECRATE").unwrap();
+    let token=encode(&Header::default(), &claim, &EncodingKey::from_secret(secret.as_ref()));
+    match token {
+        Ok(value)=>{
+            let response=LoginResponse{
+        status:Status::Success,
+        token:value
+    };
+      return  Ok(Json::from(response));
+        },
+        Err(e)=>{
+            let response=ErrorResponse{
+                status:Status::Error,
+                error:e.to_string()
+            };
+            return Err(Json::from(response));
+        }
+    }
 }
