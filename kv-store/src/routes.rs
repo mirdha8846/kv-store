@@ -26,7 +26,7 @@ use types::Claims;
 use jsonwebtoken::{encode, EncodingKey, Header};
 pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetResponse> {
     let start=Instant::now();
-    counter!("route_hits",1,"route"=>"set_value");
+    counter!("route_hit",1,"route"=>"set_value");
     let key = payload.key;
     let value = payload.value;
      let total_nodes = NODES.len();
@@ -42,9 +42,9 @@ pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetRespo
             success_count += 1;
               println!("count for set reached {}",success_count);
         }
-        let elapsed=start.elapsed().as_secs_f64();
-        histogram!("request_duration_seconds",elapsed, "route" => "set_value");
-     }
+    }
+    let elapsed=start.elapsed().as_secs_f64();
+    histogram!("request_duration_seconds",elapsed, "route" => "set_value");
        if success_count >= 3 {
           println!("count reached 3 and value stored");
         let response = SetResponse {
@@ -104,10 +104,10 @@ pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<Ge
 
                     }
                 }
+            }
                 let elapsed=start.elapsed().as_secs_f64();
                 histogram!("request_duration_seconds", elapsed,"route"=>"get_value");
                 
-            }
             let error_response = ErrorResponse {
                 status: Status::Error,
                 error: format!("Key '{}' not found", key),
