@@ -1,8 +1,18 @@
 use once_cell::sync::Lazy;
 use sled::Db;
 
-static NODE1_DB: Lazy<Db> = Lazy::new(|| sled::open("db/node1").unwrap());
-static NODE2_DB: Lazy<Db> = Lazy::new(|| sled::open("db/node2").unwrap());
-static NODE3_DB: Lazy<Db> = Lazy::new(|| sled::open("db/node3").unwrap());
 
-pub static NODES: Lazy<Vec<&'static Db>> = Lazy::new(|| vec![&NODE1_DB, &NODE2_DB, &NODE3_DB]);
+pub struct Node {
+   pub id: String,
+   pub db: Db,
+}
+
+pub static NODES: Lazy<Vec<Node>> = Lazy::new(|| {
+    vec![
+        Node { id: "node0".into(), db: sled::open("db/node0").unwrap() },
+        Node { id: "node1".into(), db: sled::open("db/node1").unwrap() },
+        Node { id: "node2".into(), db: sled::open("db/node2").unwrap() },
+        Node { id: "node3".into(), db: sled::open("db/node3").unwrap() },
+        Node { id: "node4".into(), db: sled::open("db/node4").unwrap() },
+    ]
+});
