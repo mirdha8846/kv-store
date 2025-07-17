@@ -11,6 +11,7 @@ use axum::{
     middleware::from_fn,
     response::IntoResponse,
 };
+use tower_http::trace::TraceLayer;
 use middleware::auth_middlware;
 use routes::{set_value, delete_value, get_value, login_handler};
 use metrics_exporter_prometheus::{PrometheusBuilder};
@@ -18,6 +19,7 @@ use metrics::{gauge};
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().init();
     //todo-whole promethus setpup
     //syscall wala system
     // Build recorder 
@@ -50,7 +52,8 @@ async fn main() {
         .route("/login", post(login_handler))
         .route("/metrics", get(move || async move {
            metrics_handle.render().into_response()
-        }));
+        }))
+        .layer(TraceLayer::new_for_http());
 
     // Bind and run server
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
