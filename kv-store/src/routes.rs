@@ -6,8 +6,9 @@
 // Gossip-based sync	Replicas fix missing data later
 
 
-
+use metrics::{counter, histogram};
 use std::env;
+use std::time::Instant;
 use std::fmt::format;
 use chrono::{Utc,Duration};
 use axum::{extract::Json};
@@ -24,6 +25,8 @@ use super::config::NODES;
 use types::Claims;
 use jsonwebtoken::{encode, EncodingKey, Header};
 pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetResponse> {
+    let start=Instant::now();
+    counter!("route_hits",1,"route"=>"set_value");
     let key = payload.key;
     let value = payload.value;
      let total_nodes = NODES.len();
@@ -39,6 +42,8 @@ pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetRespo
             success_count += 1;
               println!("count for set reached {}",success_count);
         }
+        let elapsed=start.elapsed().as_secs_f64();
+        histogram!("request_duration_seconds",elapsed, "route" => "set_value");
      }
        if success_count >= 3 {
           println!("count reached 3 and value stored");
@@ -55,12 +60,12 @@ pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetRespo
                 };
                 return Json::from(response);
     }
-   
-   
 }
 
 
 pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<GetResponse>,  Json<ErrorResponse>> {
+    let start=Instant::now();
+    counter!("route_hit",1,"route"=>"get_value");   
     let key = payload.key;
     let total_nodes = NODES.len();
     let primary_index = get_node_for_key(&key, total_nodes);
@@ -99,6 +104,8 @@ pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<Ge
 
                     }
                 }
+                let elapsed=start.elapsed().as_secs_f64();
+                histogram!("request_duration_seconds", elapsed,"route"=>"get_value");
                 
             }
             let error_response = ErrorResponse {
@@ -118,8 +125,9 @@ pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<Ge
 }
 
 pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<Json<DeleteResponse>, Json<ErrorResponse>> {
+    let start=Instant::now();
+    counter!("route_hit",1,"route"=>"delete_value");
     let key = payload.key;
-    
     // Remove from Sled database
      let total_nodes = NODES.len();
     let primary_index: usize = get_node_for_key(&key, total_nodes);
@@ -134,6 +142,8 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<
               println!("count in delete {}",success_count);
         }
         }
+        let elapsed=start.elapsed().as_secs_f64();
+        histogram!("request_duration_seconds",elapsed,"route"=>"delete_value");
         if success_count>=3{
             println!("count reached 3 and deleted");
               let response = DeleteResponse {
@@ -152,6 +162,8 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<
 }
 
 pub async fn login_handler(Json(payload):Json<IncomingLoginRequest>)->Result<Json<LoginResponse>,Json<ErrorResponse>>{
+    let start=Instant::now();
+    counter!("route_hit",1,"route"=>"login_handler");
     dotenv().ok();
     let email=payload.email;
     let claim=Claims{
@@ -166,6 +178,8 @@ pub async fn login_handler(Json(payload):Json<IncomingLoginRequest>)->Result<Jso
         status:Status::Success,
         token:value
     };
+    let elapsed=start.elapsed().as_secs_f64();
+    histogram!("request_duration_seconds",elapsed,"route"=>"login_handler");
       return  Ok(Json::from(response));
         },
         Err(e)=>{
