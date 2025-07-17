@@ -4,6 +4,7 @@ mod routes_resp;
 mod config;
 mod ring;
 
+use sysinfo::{System};
 use axum::{
     Router,
     routing::{get, post},
@@ -17,6 +18,8 @@ use metrics::{gauge};
 
 #[tokio::main]
 async fn main() {
+    //todo-whole promethus setpup
+    //syscall wala system
     // Build recorder 
     let recorder =
         PrometheusBuilder::new().build_recorder();
@@ -24,7 +27,16 @@ async fn main() {
 
     // Emit a metric
      let handle = recorder.handle();
-    gauge!("memory_usage_bytes", 0.0);
+       tokio::spawn(async {
+        let mut sys = System::new_all();
+        loop {
+            sys.refresh_memory();
+            let mem = sys.used_memory() as f64; // Bytes
+            gauge!("memory_usage_bytes", mem);
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        }
+    });
+
 
     // Clone handle for moving into the route
     let metrics_handle = handle.clone();

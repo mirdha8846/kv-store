@@ -13,7 +13,6 @@ use std::fmt::format;
 use chrono::{Utc,Duration};
 use axum::{extract::Json};
 use dotenv::dotenv;
-use serde::de::value;
 use super::middleware::types;
 use super::routes_resp::{SetResponse, IncomingSetRequest,
     IncomingGetRequest,GetResponse,ErrorResponse,IncomingDeleteRequest,
@@ -24,6 +23,8 @@ use super::ring::get_node_for_key;
 use super::config::NODES;
 use types::Claims;
 use jsonwebtoken::{encode, EncodingKey, Header};
+
+
 pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetResponse> {
     let start=Instant::now();
     counter!("route_hit",1,"route"=>"set_value");
@@ -46,6 +47,7 @@ pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetRespo
     let elapsed=start.elapsed().as_secs_f64();
     histogram!("request_duration_seconds",elapsed, "route" => "set_value");
        if success_count >= 3 {
+         counter!("error_count", 1, "route" => "set_value");
           println!("count reached 3 and value stored");
         let response = SetResponse {
         status: Status::Success,
@@ -54,6 +56,7 @@ pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetRespo
     Json::from(response)
 
     } else {
+         counter!("error_count", 1, "route" => "set_value");
           let response = SetResponse {
                     status: Status::Error,
                     message: format!("Failed to set key '{}'", key),
@@ -61,7 +64,6 @@ pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetRespo
                 return Json::from(response);
     }
 }
-
 
 pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<GetResponse>,  Json<ErrorResponse>> {
     let start=Instant::now();
@@ -112,6 +114,7 @@ pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<Ge
                 status: Status::Error,
                 error: format!("Key '{}' not found", key),
             };
+             counter!("error_count", 1, "route" => "get_value");
             Err(Json::from(error_response))
         }
         Err(e) => {
@@ -119,6 +122,7 @@ pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<Ge
                 status: Status::Error,
                 error: format!("Database error: {}", e),
             };
+             counter!("error_count", 1, "route" => "get_value");
             Err(Json::from(error_response))
         }
     }
@@ -145,6 +149,7 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<
         let elapsed=start.elapsed().as_secs_f64();
         histogram!("request_duration_seconds",elapsed,"route"=>"delete_value");
         if success_count>=3{
+             counter!("error_count", 1, "route" => "delete_value");
             println!("count reached 3 and deleted");
               let response = DeleteResponse {
                 status: Status::Success,
@@ -152,6 +157,7 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<
             };
             Ok(Json::from(response))
         }else{
+             counter!("error_count", 1, "route" => "delete_value");
              let error_response = ErrorResponse {
                     status: Status::Error,
                     error: format!("Failed to flush database: {}",key),
@@ -187,6 +193,7 @@ pub async fn login_handler(Json(payload):Json<IncomingLoginRequest>)->Result<Jso
                 status:Status::Error,
                 error:e.to_string()
             };
+             counter!("error_count", 1, "route" => "login_handler");
             return Err(Json::from(response));
         }
     }
