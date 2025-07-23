@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tokio::time::Instant;
 
 #[derive(Serialize, Deserialize)]
 pub enum Status {
@@ -34,10 +35,22 @@ pub struct ErrorResponse {
     pub error: String,
 }
 
+#[derive(Clone, Debug)]
+pub enum WalOp {
+    Set { key: String, value: String },
+    Delete { key: String },
+}
+
 
 
 
 //Incoming request structures
+#[derive(Clone,Debug)]
+//wal->write ahead log
+pub struct Wal{
+pub opration:WalOp,
+pub time:Instant
+}
 #[derive(Deserialize, Serialize)]
 pub struct IncomingSetRequest {
     pub key: String,

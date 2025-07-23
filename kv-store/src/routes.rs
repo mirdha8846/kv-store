@@ -7,12 +7,14 @@
 
 
 use metrics::{counter, histogram};
+use tokio::time::Instant;
 use std::env;
-use std::time::Instant;
-use std::fmt::format;
+
 use chrono::{Utc,Duration};
-use axum::{extract::Json};
+use axum::{extract::Json, extract::State};
 use dotenv::dotenv;
+use crate::routes_resp::{Wal, WalOp};
+
 use super::middleware::types;
 use super::routes_resp::{SetResponse, IncomingSetRequest,
     IncomingGetRequest,GetResponse,ErrorResponse,IncomingDeleteRequest,
@@ -25,37 +27,42 @@ use types::Claims;
 use jsonwebtoken::{encode, EncodingKey, Header};
 
 
-pub async fn set_value(Json(payload): Json<IncomingSetRequest>) -> Json<SetResponse> {
+pub async fn set_value(
+    State(tx): State<tokio::sync::mpsc::Sender<Wal>>,
+    Json(payload): Json<IncomingSetRequest>
+) -> Json<SetResponse> {
     let start=Instant::now();
     counter!("route_hit",1,"route"=>"set_value");
     let key = payload.key;
     let value = payload.value;
      let total_nodes = NODES.len();
-     let mut success_count = 0;
+     
 
     // todo-Check if the key already exists
     let primary_index = get_node_for_key(&key,total_nodes);
-     for i in 0..3{
-         let node_index = (primary_index + i) % total_nodes;
-        let db = &NODES[node_index].db;
+     
+        let db = &NODES[primary_index].db;
+         
          if db.insert(key.as_bytes(), value.as_bytes()).is_ok() {
             db.flush().ok();
-            success_count += 1;
-              println!("count for set reached {}",success_count);
+            
+            let entry=Wal{
+                opration:WalOp::Set { key: key, value: value },
+                time:tokio::time::Instant::now()
+            };
+             if tx.send(entry).await.is_err() {
+            eprintln!("WAL send failed");
         }
-    }
-    let elapsed=start.elapsed().as_secs_f64();
-    histogram!("request_duration_seconds",elapsed, "route" => "set_value");
-       if success_count >= 3 {
-         counter!("error_count", 1, "route" => "set_value");
-          println!("count reached 3 and value stored");
-        let response = SetResponse {
-        status: Status::Success,
-        message: format!("Set key '{}' with value '{}'", key, value),
-    };
-    Json::from(response)
-
-    } else {
+            
+            let elapsed=start.elapsed().as_secs_f64();
+            histogram!("request_duration_seconds",elapsed, "route" => "set_value");
+             let response = SetResponse {
+                    status: Status::Success,
+                    message: format!("key stored"),
+                };
+                Json::from(response)
+        }
+     else {
          counter!("error_count", 1, "route" => "set_value");
           let response = SetResponse {
                     status: Status::Error,
@@ -128,7 +135,7 @@ pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<Ge
     }
 }
 
-pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<Json<DeleteResponse>, Json<ErrorResponse>> {
+pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>, State(tx): State<tokio::sync::mpsc::Sender<Wal>>) -> Result<Json<DeleteResponse>, Json<ErrorResponse>> {
     let start=Instant::now();
     counter!("route_hit",1,"route"=>"delete_value");
     let key = payload.key;
@@ -136,24 +143,25 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>) -> Result<
      let total_nodes = NODES.len();
     let primary_index: usize = get_node_for_key(&key, total_nodes);
    
-    let mut success_count=0;
-    for i in 0..3{
-        let node=(primary_index + i) % total_nodes;
-        let db=&NODES[node].db;
+   
+        let db=&NODES[primary_index].db;
         if db.remove(key.clone().as_bytes()).is_ok(){
             db.flush().ok();
-            success_count+=1;
-              println!("count in delete {}",success_count);
-        }
-        }
+          let entry=Wal{
+            opration:WalOp::Delete { key:key },
+            time:Instant::now()
+          };
+          if tx.send(entry).await.is_err(){
+            eprintln!("failed to delete")
+          }
         let elapsed=start.elapsed().as_secs_f64();
         histogram!("request_duration_seconds",elapsed,"route"=>"delete_value");
-        if success_count>=3{
+        
              counter!("error_count", 1, "route" => "delete_value");
-            println!("count reached 3 and deleted");
+           
               let response = DeleteResponse {
                 status: Status::Success,
-                message: format!("Deleted key '{}'", key),
+                message: format!("key deleted "),
             };
             Ok(Json::from(response))
         }else{
