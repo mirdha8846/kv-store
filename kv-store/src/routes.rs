@@ -19,7 +19,7 @@ use super::middleware::types;
 use super::routes_resp::{SetResponse, IncomingSetRequest,
     IncomingGetRequest,GetResponse,ErrorResponse,IncomingDeleteRequest,
     DeleteResponse,LoginResponse,IncomingLoginRequest};
-
+use super::wal::{append_wal};
 use super::routes_resp::Status;
 use super::ring::get_node_for_key;
 use super::config::NODES;
@@ -35,21 +35,38 @@ pub async fn set_value(
     counter!("route_hit",1,"route"=>"set_value");
     let key = payload.key;
     let value = payload.value;
-     let total_nodes = NODES.len();
-     
+    let total_nodes = NODES.len();
 
-    // todo-Check if the key already exists
+    //todo->check same key already present or not
+    
+    let entry=Wal::new(WalOp::Set { key:key.clone(), value:value.clone() });
+     
+    
+    
     let primary_index = get_node_for_key(&key,total_nodes);
      
         let db = &NODES[primary_index].db;
+
+        if db.get(key.as_bytes()).is_ok(){
+           
+            let response = SetResponse {
+                    status: Status::Success,
+                    message: format!("key already present"),
+                };
+               return  Json::from(response);
+        }
+
+         if let Err(e) = append_wal(&entry) {
+        // Agar WAL write fail ho jaye, to safe hai request fail karna
+        return Json::from(SetResponse {
+            status: Status::Error,
+            message: format!("WAL disk write failed: {}", e),
+        });
+    }
          
          if db.insert(key.as_bytes(), value.as_bytes()).is_ok() {
             db.flush().ok();
-            
-            let entry=Wal{
-                opration:WalOp::Set { key: key, value: value },
-                time:tokio::time::Instant::now()
-            };
+         
              if tx.send(entry).await.is_err() {
             eprintln!("WAL send failed");
         }
@@ -135,7 +152,10 @@ pub async fn get_value(Json(payload):Json<IncomingGetRequest>) -> Result<Json<Ge
     }
 }
 
-pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>, State(tx): State<tokio::sync::mpsc::Sender<Wal>>) -> Result<Json<DeleteResponse>, Json<ErrorResponse>> {
+pub async fn delete_value(
+    State(tx): State<tokio::sync::mpsc::Sender<Wal>>,
+    Json(payload): Json<IncomingDeleteRequest>
+) -> Result<Json<DeleteResponse>, Json<ErrorResponse>> {
     let start=Instant::now();
     counter!("route_hit",1,"route"=>"delete_value");
     let key = payload.key;
@@ -147,10 +167,8 @@ pub async fn delete_value(Json(payload): Json<IncomingDeleteRequest>, State(tx):
         let db=&NODES[primary_index].db;
         if db.remove(key.clone().as_bytes()).is_ok(){
             db.flush().ok();
-          let entry=Wal{
-            opration:WalOp::Delete { key:key },
-            time:Instant::now()
-          };
+            let entry=Wal::new(WalOp::Delete { key: key });
+        
           if tx.send(entry).await.is_err(){
             eprintln!("failed to delete")
           }

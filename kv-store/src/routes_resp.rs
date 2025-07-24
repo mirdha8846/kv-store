@@ -48,6 +48,7 @@ pub enum WalOp {
 #[derive(Clone,Debug)]
 //wal->write ahead log
 pub struct Wal{
+pub sequenceNumber:usize,    
 pub opration:WalOp,
 pub time:Instant
 }

@@ -4,7 +4,7 @@ mod routes_resp;
 mod config;
 mod ring;
 mod replication;
-
+mod wal;
 use sysinfo::{System};
 use axum::{
     middleware::from_fn, response::IntoResponse, routing::{get, post}, Router
@@ -20,6 +20,8 @@ use crate::{replication::replication_worker, routes_resp::Wal};
 
 #[tokio::main]
 async fn main() {
+    //goship or daynamic nodes wala systeam...
+
     tracing_subscriber::fmt().init();
     let(tx,rx):(Sender<Wal>,Receiver<Wal>)=channel(100);
     tokio::spawn(replication_worker(rx));
@@ -49,15 +51,18 @@ async fn main() {
     // Set up Axum app
     let set_value_routes = Router::new()
         .route("/set-value", post(set_value))
+        .with_state(tx.clone());
+    let delete_value_route=Router::new()
         .route("/delete-value", post(delete_value))
         .with_state(tx.clone());
-    
     let other_protected_routes = Router::new()
         .route("/get-value", post(get_value));
+       
        
     
     let protected_routes = Router::new()
         .merge(set_value_routes)
+        .merge(delete_value_route)
         .merge(other_protected_routes)
         .layer(from_fn(auth_middlware));
     

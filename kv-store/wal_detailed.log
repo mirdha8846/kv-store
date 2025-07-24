@@ -1,0 +1,2 @@
+{"checksum":"aedb479b823a209e","node_id":"node-0","node_index":0,"operation":{"key":"pankaj","key_size":6,"op":"SET","value":"mirdha2","value_size":7},"seq":3,"timestamp":"2025-07-24 03:33:46.108 UTC","version":"1.0"}
+{"checksum":"aedb479b823a209e","node_id":"node-0","node_index":0,"operation":{"key":"pankaj","key_size":6,"op":"SET","value":"mirdha2","value_size":7},"seq":4,"timestamp":"2025-07-24 03:34:00.857 UTC","version":"1.0"}
