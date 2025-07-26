@@ -1,6 +1,19 @@
 use once_cell::sync::Lazy;
 use super::hashring::HashRing;
-use std::sync::RwLock;
+use std::{collections::HashMap, sync::RwLock};
+
+
+#[derive(Debug, Clone)]
+pub struct NodeHealth {
+    pub id: String,
+    pub last_heartbeat: u64, // epoch milliseconds
+    pub is_alive: bool,
+}
+
+// Global Health Table
+pub static HEALTH_TABLE: Lazy<RwLock<HashMap<String, NodeHealth>>> = Lazy::new(|| {
+    RwLock::new(HashMap::new())
+});
 
 pub static HASH_RING: Lazy<RwLock<HashRing>> = Lazy::new(|| {
     let mut ring = HashRing::new(100); // 100 vnodes per node

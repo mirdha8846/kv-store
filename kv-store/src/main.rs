@@ -6,6 +6,7 @@ mod ring;
 mod replication;
 mod wal;
 mod hashring;
+mod gprotocol;
 use sysinfo::{System};
 use axum::{
     middleware::from_fn, response::IntoResponse, routing::{get, post}, Router
@@ -16,7 +17,7 @@ use middleware::auth_middlware;
 use routes::{set_value, delete_value, get_value, login_handler};
 use metrics_exporter_prometheus::{PrometheusBuilder};
 use metrics::{gauge};
-
+use gprotocol::{start_local_health_checker,start_heartbeat_updater};
 
 use crate::{replication::replication_worker, routes_resp::Wal};
 
@@ -26,8 +27,10 @@ async fn main() {
 
     
     tracing_subscriber::fmt().init();
+     let my_id = "gossip_simulator".to_string(); // dummy ID for self
+    tokio::spawn(start_heartbeat_updater(my_id.clone()));
+    tokio::spawn(start_local_health_checker(my_id.clone()));
     
-
 
     let(tx,rx):(Sender<Wal>,Receiver<Wal>)=channel(100);
     tokio::spawn(replication_worker(rx));

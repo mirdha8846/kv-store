@@ -93,5 +93,10 @@ impl HashRing {
 
     vec![follower1, follower2]
 }
-
+pub fn get_all_node_ids(&self) -> Vec<String> {
+        self.node_map.keys().cloned().collect()
+    }
+     pub fn get_node_by_id(&self, id: &str) -> Option<&Node> {
+        self.node_map.get(id)
+    }
 }
