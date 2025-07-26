@@ -5,6 +5,7 @@ mod config;
 mod ring;
 mod replication;
 mod wal;
+mod hashring;
 use sysinfo::{System};
 use axum::{
     middleware::from_fn, response::IntoResponse, routing::{get, post}, Router
@@ -16,13 +17,18 @@ use routes::{set_value, delete_value, get_value, login_handler};
 use metrics_exporter_prometheus::{PrometheusBuilder};
 use metrics::{gauge};
 
+
 use crate::{replication::replication_worker, routes_resp::Wal};
 
 #[tokio::main]
 async fn main() {
     //goship or daynamic nodes wala systeam...
 
+    
     tracing_subscriber::fmt().init();
+    
+
+
     let(tx,rx):(Sender<Wal>,Receiver<Wal>)=channel(100);
     tokio::spawn(replication_worker(rx));
     //todo-whole promethus setpup

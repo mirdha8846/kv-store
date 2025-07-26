@@ -1,13 +1,13 @@
 use std::fs::{OpenOptions};
 use std::io::{Write, Result};
 use super::routes_resp::{Wal,WalOp};
-use super::ring::get_node_for_key;
+// use super::ring::get_node_for_key;
 use tokio::time::Instant;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use serde_json;
 use chrono::Utc;
 use sha2::{Sha256, Digest};
-use super::config::NODES;
+use super::config::HASH_RING;
 
 static WAL_SEQUENCE_COUNTER: AtomicUsize = AtomicUsize::new(1); 
 impl Wal {
@@ -21,9 +21,18 @@ impl Wal {
             WalOp::Delete { key } => key,
         };
         
-        let total_nodes = NODES.len();
-        let node_index = get_node_for_key(key, total_nodes);
-        let node_id = format!("node-{}", node_index);
+        // let total_nodes = NODES.len();
+        let ring=HASH_RING.read().unwrap();
+       
+        let node = match ring.get_node(&key) {
+        Some(n) => n,
+        None => {
+            return "".to_string();
+        }
+    };
+        // let node_index = get_node(&key);
+        // let node_id = format!("node-{}", node_index);
+        let node_id=&node.id;
         
         let operation_data = match &self.opration {
             WalOp::Set { key, value } => {
@@ -54,7 +63,6 @@ impl Wal {
             "seq": self.sequenceNumber,
             "timestamp": timestamp,
             "node_id": node_id,
-            "node_index": node_index,
             "operation": operation_data,
             "checksum": checksum,
             "version": "1.0"
@@ -76,10 +84,13 @@ impl Wal {
 pub fn append_wal(entry: &Wal) -> Result<()> {
     let data = entry.to_log_line().as_bytes().to_vec();
     
+    // Create logs directory if it doesn't exist
+    std::fs::create_dir_all("logs")?;
+    
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open("wal_detailed.log")?;
+        .open("logs/wal_detailed.log")?;  // Better organized path
     
     file.write_all(&data)?;
     file.sync_data()?; // Ensures disk write
