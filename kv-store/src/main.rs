@@ -7,6 +7,7 @@ mod replication;
 mod wal;
 mod hashring;
 mod gprotocol;
+mod recovery;
 use sysinfo::{System};
 use axum::{
     middleware::from_fn, response::IntoResponse, routing::{get, post}, Router
